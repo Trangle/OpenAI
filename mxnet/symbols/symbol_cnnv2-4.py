@@ -87,9 +87,9 @@ def get_symbol(num_classes=12):
 
     # stage 5  1x1
     flatten = mx.symbol.Flatten(data=pool5, name='flatten')
-    # dropout1 = mx.symbol.Dropout(data=flatten, p=0.5)
+    dropout1 = mx.symbol.Dropout(data=flatten, p=0.2)
 
-    fc1 = mx.symbol.FullyConnected(data=flatten, num_hidden=num_classes, name='fc1')
+    fc1 = mx.symbol.FullyConnected(data=dropout1, num_hidden=num_classes, name='fc1')
     softmax = mx.symbol.SoftmaxOutput(data=fc1, name='softmax')
 
 
