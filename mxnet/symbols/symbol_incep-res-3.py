@@ -8,16 +8,15 @@ Szegedy C, Ioffe S, Vanhoucke V. Inception-v4, inception-resnet and the impact o
 
 """
 
+import find_mxnet
 import mxnet as mx
 
 
-def Conv(data, num_filter, bn_momentum=0.9, kernel=(1, 1), stride=(1, 1), pad=(0, 0), name=None, suffix='',
-         withRelu=True, withBn=False):
+def Conv(data, num_filter, bn_momentum=0.9, kernel=(1, 1), stride=(1, 1), pad=(0, 0), name=None, suffix='', withRelu=True, withBn=True):
     conv = mx.sym.Convolution(data=data, num_filter=num_filter, kernel=kernel, stride=stride, pad=pad, no_bias=True,
                               name='%s%s_conv2d' % (name, suffix))
     if withBn:
-        conv = mx.sym.BatchNorm(data=conv, momentum=bn_momentum, fix_gamma=False, eps=2e-5,
-                                name='%s%s_bn' % (name, suffix))
+        conv = mx.sym.BatchNorm(data=conv, momentum=bn_momentum, fix_gamma=False, eps=2e-5, name='%s%s_bn' % (name, suffix))
         # conv = mx.sym.BatchNorm(data=conv, name='%s%s_bn' % (name, suffix))
     if withRelu:
         conv = mx.sym.Activation(data=conv, act_type='relu', name='%s%s_relu' % (name, suffix))
@@ -29,11 +28,9 @@ def InceptionResnetStem(data,
                         name):
     c1 = Conv(data=data, num_filter=32, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_conv1' % name))
     c2 = Conv(data=c1, num_filter=64, kernel=(3, 3), pad=(1, 1), name=('%s_conv2' % name))
-    pool1 = mx.sym.Pooling(data=c2, kernel=(3, 3), pad=(1, 1), stride=(2, 2), pool_type='max',
-                           name=('%s_%s_pool1' % ('max', name)))
+    pool1 = mx.sym.Pooling(data=c2, kernel=(3, 3), pad=(1, 1), stride=(2, 2), pool_type='max', name=('%s_%s_pool1' % ('max', name)))
     c3 = Conv(data=pool1, num_filter=64, kernel=(3, 3), pad=(1, 1), name=('%s_conv3' % name))
-    c4 = Conv(data=c3, num_filter=128, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_conv4' % name),
-              withRelu=False, withBn=False)
+    c4 = Conv(data=c3, num_filter=128, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_conv4' % name), withBn=False, withRelu=False)
     return c4
 
 
@@ -41,6 +38,7 @@ def InceptionResnetV2A(data,
                        name,
                        bn_momentum=0.9,
                        scaleResidual=True):
+
     bn1 = mx.symbol.BatchNorm(name=('%s_bn1' % name), data=data, fix_gamma=False, momentum=bn_momentum, eps=2e-5)
     ac1 = mx.symbol.Activation(name=('%s_relu1' % name), data=bn1, act_type='relu')
 
@@ -56,10 +54,10 @@ def InceptionResnetV2A(data,
     a3 = Conv(data=a3, num_filter=64, kernel=(3, 3), pad=(1, 1), name=('%s_a_3' % name), suffix='_conv_3')
 
     merge = mx.sym.Concat(*[a1, a2, a3], name=('%s_a_concat1' % name))
-    a4 = Conv(data=merge, num_filter=128, name=('%s_a_4' % name), suffix='_conv', withRelu=False)
+    a4 = Conv(data=merge, num_filter=128, name=('%s_a_4' % name), suffix='_conv', withRelu=False, withBn=False)
 
     if scaleResidual:
-        a4 *= 0.3
+        a4 *= 0.4
 
     out = init + a4
 
@@ -70,6 +68,7 @@ def InceptionResnetV2B(data,
                        name,
                        bn_momentum=0.9,
                        scaleResidual=True):
+
     bn1 = mx.symbol.BatchNorm(name=('%s_bn1' % name), data=data, fix_gamma=False, momentum=bn_momentum, eps=2e-5)
     ac1 = mx.symbol.Activation(name=('%s_relu1' % name), data=bn1, act_type='relu')
 
@@ -82,10 +81,10 @@ def InceptionResnetV2B(data,
     b2 = Conv(data=b2, num_filter=64, kernel=(7, 1), pad=(3, 0), name=('%s_b_2' % name), suffix='_conv_3')
 
     merge = mx.sym.Concat(*[b1, b2], name=('%s_b_concat1' % name))
-    b3 = Conv(data=merge, num_filter=256, name=('%s_b_3' % name), suffix='_conv', withRelu=False)
+    b3 = Conv(data=merge, num_filter=256, name=('%s_b_3' % name), suffix='_conv', withRelu=False, withBn=False)
 
     if scaleResidual:
-        b3 *= 0.3
+        b3 *= 0.4
 
     out = init + b3
 
@@ -108,10 +107,10 @@ def InceptionResnetV2C(data,
     c2 = Conv(data=c2, num_filter=128, kernel=(3, 1), pad=(1, 0), name=('%s_c_2' % name), suffix='_conv_3')
 
     merge = mx.sym.Concat(*[c1, c2], name=('%s_c_concat1' % name))
-    c3 = Conv(data=merge, num_filter=608, name=('%s_c_3' % name), suffix='_conv', withRelu=False)
+    c3 = Conv(data=merge, num_filter=608, name=('%s_c_3' % name), suffix='_conv', withRelu=False, withBn=False)
 
     if scaleResidual:
-        c3 *= 0.3
+        c3 *= 0.4
 
     out = init + c3
 
@@ -121,19 +120,17 @@ def InceptionResnetV2C(data,
 def ReductionResnetV2A(data,
                        name,
                        bn_momentum=0.9):
+
     bn1 = mx.symbol.BatchNorm(name=('%s_bn1' % name), data=data, fix_gamma=False, momentum=bn_momentum, eps=2e-5)
     ac1 = mx.symbol.Activation(name=('%s_relu1' % name), data=bn1, act_type='relu')
 
-    ra1 = mx.sym.Pooling(data=ac1, kernel=(3, 3), pad=(1, 1), stride=(2, 2), pool_type='max',
-                         name=('%s_%s_pool1' % ('max', name)))
+    ra1 = mx.sym.Pooling(data=ac1, kernel=(3, 3), pad=(1, 1), stride=(2, 2), pool_type='max', name=('%s_%s_pool1' % ('max', name)))
 
-    ra2 = Conv(data=ac1, num_filter=64, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_ra_2' % name),
-               suffix='_conv_2')
+    ra2 = Conv(data=ac1, num_filter=64, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_ra_2' % name), suffix='_conv_2')
 
     ra3 = Conv(data=ac1, num_filter=32, name=('%s_ra_3' % name), suffix='_conv_1')
     ra3 = Conv(data=ra3, num_filter=48, kernel=(3, 3), pad=(1, 1), name=('%s_ra_3' % name), suffix='_conv_2')
-    ra3 = Conv(data=ra3, num_filter=64, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_ra_3' % name),
-               suffix='_conv_3')
+    ra3 = Conv(data=ra3, num_filter=64, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_ra_3' % name), suffix='_conv_3')
 
     m = mx.sym.Concat(*[ra1, ra2, ra3], name=('%s_ra_concat1' % name))
     m = Conv(data=m, num_filter=256, name=('%s_ra_sc' % name), suffix='_conv', withRelu=False, withBn=False)
@@ -143,25 +140,22 @@ def ReductionResnetV2A(data,
 
 def ReductionResnetV2B(data,
                        name,
-                       bn_momentum=0.9):
+                       bn_momentum = 0.9):
     bn1 = mx.symbol.BatchNorm(name=('%s_bn1' % name), data=data, fix_gamma=False, momentum=bn_momentum, eps=2e-5)
     ac1 = mx.symbol.Activation(name=('%s_relu1' % name), data=bn1, act_type='relu')
 
-    rb1 = mx.sym.Pooling(data=ac1, kernel=(3, 3), pad=(1, 1), stride=(2, 2), pool_type='max',
-                         name=('%s_%s_pool1' % ('max', name)))
+    rb1 = mx.sym.Pooling(data=data, kernel=(3, 3), pad=(1, 1), stride=(2, 2), pool_type='max', name=('%s_%s_pool1' % ('max', name)))
 
-    rb2 = Conv(data=ac1, num_filter=64, name=('%s_rb_2' % name), suffix='_conv_1')
-    rb2 = Conv(data=rb2, num_filter=128, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_rb_2' % name),
-               suffix='_conv_2')
+    rb2 = Conv(data=data, num_filter=64, name=('%s_rb_2' % name), suffix='_conv_1')
+    rb2 = Conv(data=rb2, num_filter=128, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_rb_2' % name), suffix='_conv_2')
 
-    rb3 = Conv(data=ac1, num_filter=64, name=('%s_rb_3' % name), suffix='_conv_1')
+    rb3 = Conv(data=data, num_filter=64, name=('%s_rb_3' % name), suffix='_conv_1')
     rb3 = Conv(data=rb3, num_filter=96, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_rb_3' % name),
                suffix='_conv_2')
 
-    rb4 = Conv(data=ac1, num_filter=64, name=('%s_rb_4' % name), suffix='_conv_1')
+    rb4 = Conv(data=data, num_filter=64, name=('%s_rb_4' % name), suffix='_conv_1')
     rb4 = Conv(data=rb4, num_filter=96, kernel=(3, 3), pad=(1, 1), name=('%s_rb_4' % name), suffix='_conv_2')
-    rb4 = Conv(data=rb4, num_filter=128, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_rb_4' % name),
-               suffix='_conv_3')
+    rb4 = Conv(data=rb4, num_filter=128, kernel=(3, 3), pad=(1, 1), stride=(2, 2), name=('%s_rb_4' % name), suffix='_conv_3')
 
     m = mx.sym.Concat(*[rb1, rb2, rb3, rb4], name=('%s_rb_concat1' % name))
     m = Conv(data=m, num_filter=608, name=('%s_rb_sc' % name), suffix='_conv', withRelu=False, withBn=False)
@@ -216,16 +210,12 @@ def get_symbol(num_classes=1000, bn_momentum=0.9, scale=True):
     # input shape 3*229*229
     data = mx.symbol.Variable(name="data")
     zscore = mx.symbol.BatchNorm(name='bn_data', data=data, fix_gamma=True, momentum=bn_momentum, eps=2e-5)
-
     # stage stem
 
     in_stem = InceptionResnetStem(zscore,
                                   'stem_stage')
-    # round = [3, 1, 0] # 0.915
-    # round = [3, 6, 2] # 0.905
-    # round = [3, 2, 1] # 0.910
-    # round = [3, 1, 1]
-    round = [4, 2, 1]
+    # round = [3, 1, 0]
+    round = [3, 6, 2]
     # stage 2 x Inception Resnet A
 
     in3a = circle_in3a(in_stem,
@@ -238,7 +228,7 @@ def get_symbol(num_classes=1000, bn_momentum=0.9, scale=True):
 
     re3a = ReductionResnetV2A(in3a,
                               're3a',
-                              bn_momentum,)
+                              bn_momentum)
 
     # stage 2 x Inception Resnet B
 
@@ -252,7 +242,7 @@ def get_symbol(num_classes=1000, bn_momentum=0.9, scale=True):
 
     re3b = ReductionResnetV2B(in2b,
                               're3b',
-                              bn_momentum,)
+                              bn_momentum)
 
     # stage 2 x Inception Resnet C
 
@@ -282,4 +272,4 @@ if __name__ == '__main__':
     net = get_symbol(12, scale=True)
     shape = {'softmax_label': (32, 12), 'data': (32, 3, 224, 224)}
     mx.viz.print_summary(net, shape=shape)
-    mx.viz.plot_network(net, title='incep-res-2', save_format='pdf', shape=shape).render('./Files/incep-res-2')
+    mx.viz.plot_network(net, title='incep-res-3', save_format='pdf', shape=shape).render('./files/incep-res-3')
